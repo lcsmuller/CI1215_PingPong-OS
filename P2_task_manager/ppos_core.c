@@ -1,3 +1,5 @@
+// GRR20197160 Lucas Müller
+
 #include <stdio.h>
 #include <stdlib.h>
 
