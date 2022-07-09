@@ -14,7 +14,9 @@
         }                                                                     \
     } while (0)
 
-int queue_size(queue_t *q) {
+int
+queue_size(queue_t *q)
+{
     if (!q) return 0;
     int size = 1;
     for (queue_t const *end = q, *it = q->next; it != end; it = it->next)
@@ -22,7 +24,9 @@ int queue_size(queue_t *q) {
     return size;
 }
 
-void queue_print(char *name, queue_t *q, void print_elem(void *)) {
+void
+queue_print(char *name, queue_t *q, void print_elem(void *))
+{
     printf("%s [", name);
     if (q) {
         queue_t const *end = q;
@@ -32,7 +36,9 @@ void queue_print(char *name, queue_t *q, void print_elem(void *)) {
     puts("]");
 }
 
-int queue_append(queue_t **q, queue_t *elem) {
+int
+queue_append(queue_t **q, queue_t *elem)
+{
     EXPECT(q != NULL, -1, "A fila deve existir!");
     EXPECT(elem != NULL, -2, "O elemento deve existir!");
     EXPECT(!elem->next, -3, "O elemento já pertence a uma fila!");
@@ -46,7 +52,9 @@ int queue_append(queue_t **q, queue_t *elem) {
     return 0;
 }
 
-int queue_remove(queue_t **q, queue_t *elem) {
+int
+queue_remove(queue_t **q, queue_t *elem)
+{
     EXPECT(q != NULL, -1, "A fila deve existir!");
     EXPECT(elem != NULL, -2, "O elemento deve existir!");
     EXPECT(*q != NULL, -3, "A fila não deve estar vazia!");

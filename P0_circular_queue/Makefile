@@ -10,4 +10,4 @@ all: $(EXES)
 $(EXES): $(OBJS)
 
 clean:
-	$(RM) $(OBJS) $(EXES)
+	@ rm -f $(OBJS) $(EXES)
