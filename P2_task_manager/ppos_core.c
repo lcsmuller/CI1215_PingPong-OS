@@ -32,7 +32,7 @@ task_create(task_t *task, void (*start_routine)(void *), void *arg)
     static int id; // ID da tarefa
     char *st; // ponteiro para stack
 
-    *task = (task_t){ .id = ++id, .func = start_routine, .arg = arg };
+    *task = (task_t){ .id = ++id };
     if (getcontext(&task->context) == -1) {
         perror("Erro: ");
         return -1;
@@ -43,7 +43,7 @@ task_create(task_t *task, void (*start_routine)(void *), void *arg)
     }
     task->context.uc_stack = (stack_t){ .ss_sp = st, .ss_size = STACK_SIZE };
 
-    makecontext(&task->context, (void (*)())task->func, 1, task->arg);
+    makecontext(&task->context, (void (*)())start_routine, 1, arg);
     LOG_INFO("criou tarefa %d\n", id);
 
     return id;

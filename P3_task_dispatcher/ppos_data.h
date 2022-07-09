@@ -14,16 +14,9 @@ typedef struct task_t {
     struct task_t *prev, *next; // ponteiros para usar em filas
     int id; // identificador da tarefa
     ucontext_t context; // contexto armazenado da tarefa
-    enum {
-        TASK_READY = 0, // setado no task_create()
-        TASK_FINISHED, // setado no task_exit()
-        TASK_RUNNING, // setado no task_switch()
-        TASK_SUSPENDED // setado no task_switch()
-    } status; // pronta, rodando, suspensa, ...
+    short status; // pronta, rodando, suspensa, ...
     short preemptable; // pode ser preemptada?
     /* ... (outros campos serão adicionados mais tarde) */
-    void (*func)(void *arg); // função a ser executada pela tarefa
-    void *arg; // parametro a ser passado para `func`
 } task_t;
 
 // estrutura que define um semáforo
@@ -47,3 +40,4 @@ typedef struct {
 } mqueue_t;
 
 #endif
+

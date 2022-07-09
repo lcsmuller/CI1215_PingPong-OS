@@ -20,6 +20,13 @@ static task_t g_task_main, g_task_dispatcher, *g_task_curr, *g_task_prev;
 static int g_num_tasks = -1; // -1 pois não conta tarefa dispatcher
 static queue_t *g_queue;
 
+enum task_status {
+    TASK_READY = 0, // setado no task_create()
+    TASK_FINISHED, // setado no task_exit()
+    TASK_RUNNING, // setado no task_switch()
+    TASK_SUSPENDED // setado no task_switch()
+};
+
 static task_t *
 _scheduler(void)
 {
@@ -66,7 +73,7 @@ task_create(task_t *task, void (*start_routine)(void *), void *arg)
     static int id; // ID da tarefa
     char *st; // ponteiro para stack
 
-    *task = (task_t){ .id = ++id, .func = start_routine, .arg = arg };
+    *task = (task_t){ .id = ++id };
     if (getcontext(&task->context) == -1) {
         perror("Erro: ");
         return -1;
@@ -77,7 +84,7 @@ task_create(task_t *task, void (*start_routine)(void *), void *arg)
     }
     task->context.uc_stack = (stack_t){ .ss_sp = st, .ss_size = STACK_SIZE };
 
-    makecontext(&task->context, (void (*)())task->func, 1, task->arg);
+    makecontext(&task->context, (void (*)())start_routine, 1, arg);
     queue_append(&g_queue, (queue_t *)task);
     ++g_num_tasks;
 
