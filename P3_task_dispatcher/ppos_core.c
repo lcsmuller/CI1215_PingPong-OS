@@ -16,9 +16,7 @@
 #define LOG_INFO(...)
 #endif
 
-static task_t g_task_main, g_task_dispatcher, *g_task_curr, *g_task_prev;
-static int g_num_tasks = -1; // -1 pois não conta tarefa dispatcher
-static queue_t *g_queue;
+#define STACK_SIZE 64 * 1024 // tamanho da stack de cada tarefa
 
 enum task_status {
     TASK_READY = 0, // setado no task_create()
@@ -27,48 +25,14 @@ enum task_status {
     TASK_SUSPENDED // setado no task_switch()
 };
 
-static task_t *
-_scheduler(void)
-{
-    /* para essa atividade basta uma política FCFS (aka FIFO) */
-    return (task_t *)g_queue->next;
-}
+static task_t g_task_main, g_task_dispatcher; // tarefa main e dispatcher
+static task_t *g_task_curr, *g_task_prev; // ponteiros tarefa atual e anterior
+static queue_t *g_queue; // fila de tarefas
+static int g_num_tasks; // quantidade de tarefas criadas
 
-static void
-_dispatcher(void *arg)
-{
-    (void)arg;
-
-    while (g_num_tasks > 0) { // enquanto houver tarefas do usuário
-        task_t *task = _scheduler(); // próx iter se não escolheu tarefa
-
-        task_switch(task); // transfere controle para próxima tarefa
-        if (task->status == TASK_FINISHED) { // limpa recursos se finalizada
-            queue_remove(&g_queue, (queue_t *)g_task_prev);
-            free(g_task_prev->context.uc_stack.ss_sp);
-            --g_num_tasks;
-
-            LOG_INFO("num tarefas: %d ; tarefas na fila: %d\n", g_num_tasks,
-                     queue_size(g_queue));
-        }
-    }
-    // encerra a tarefa dispatcher
-    task_exit(0);
-}
-
-void
-ppos_init(void)
-{
-    // desativa o buffer da saida padrao (stdout), usado pela função printf
-    setvbuf(stdout, 0, _IONBF, 0);
-    g_task_curr = &g_task_main;
-    // inicia tarefa dispatcher
-    task_create(&g_task_dispatcher, _dispatcher, NULL);
-}
-
-#define STACK_SIZE 64 * 1024
-int
-task_create(task_t *task, void (*start_routine)(void *), void *arg)
+// cria a tarefa sem adicionar à fila
+static int
+_task_create(task_t *task, void (*start_routine)(void *), void *arg)
 {
     static int id; // ID da tarefa
     char *st; // ponteiro para stack
@@ -85,14 +49,66 @@ task_create(task_t *task, void (*start_routine)(void *), void *arg)
     task->context.uc_stack = (stack_t){ .ss_sp = st, .ss_size = STACK_SIZE };
 
     makecontext(&task->context, (void (*)())start_routine, 1, arg);
-    queue_append(&g_queue, (queue_t *)task);
-    ++g_num_tasks;
-
-    LOG_INFO("criou tarefa %d (tam fila: %d)\n", id, queue_size(g_queue));
 
     return id;
 }
-#undef STACK_SIZE
+
+// limpa recursos e remove tarefa da fila
+static void
+_task_delete(task_t *task)
+{
+    free(task->context.uc_stack.ss_sp);
+    queue_remove(&g_queue, (queue_t *)g_task_prev);
+    --g_num_tasks;
+
+    LOG_INFO("num tarefas: %d ; tarefas na fila: %d\n", g_num_tasks,
+             queue_size(g_queue));
+}
+
+static task_t *
+_scheduler(void)
+{
+    /* para essa atividade basta uma política FCFS (aka FIFO) */
+    return (task_t *)g_queue;
+}
+
+static void
+_dispatcher(void *arg)
+{
+    (void)arg;
+
+    while (g_num_tasks > 0) { // enquanto houver tarefas do usuário
+        task_t *task = _scheduler();
+
+        task_switch(task); // transfere controle para próxima tarefa
+        if (task->status == TASK_FINISHED) // limpa recursos se finalizada
+            _task_delete(g_task_prev);
+    }
+    // encerra a tarefa dispatcher
+    task_exit(0);
+}
+
+void
+ppos_init(void)
+{
+    // desativa o buffer da saida padrao (stdout), usado pela função printf
+    setvbuf(stdout, 0, _IONBF, 0);
+    g_task_curr = &g_task_main;
+    // inicia tarefa dispatcher
+    _task_create(&g_task_dispatcher, _dispatcher, NULL);
+}
+
+int
+task_create(task_t *task, void (*start_routine)(void *), void *arg)
+{
+    int id = _task_create(task, start_routine, arg);
+    if (id > 0) {
+        queue_append(&g_queue, (queue_t *)task);
+        ++g_num_tasks;
+        LOG_INFO("criou tarefa %d (tam fila: %d)\n", id, queue_size(g_queue));
+    }
+    return id;
+}
 
 int
 task_switch(task_t *task)
