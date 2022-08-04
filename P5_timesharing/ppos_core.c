@@ -80,7 +80,7 @@ _scheduler(void)
     task_t *high = (task_t *)g_queue;
 
     for (task_t *it = high->next; it != (task_t *)g_queue; it = it->next) {
-        if (high->prio_incr < it->prio_incr)
+        if (high->prio_incr <= it->prio_incr)
             it->prio_incr += PRIO_ALPHA;
         else {
             high->prio_incr += PRIO_ALPHA;
@@ -98,9 +98,8 @@ _dispatcher(void *arg)
 
     while (g_num_tasks > 0) { // enquanto houver tarefas do usuário
         task_t *task = _scheduler();
-
-        task_switch(task); // transfere controle para próxima tarefa
-        if (task->status == TASK_FINISHED) // limpa recursos se finalizada
+        // se a task trocada tiver sido finalizada, então é deletada
+        if (task_switch(task), g_task_prev->status == TASK_FINISHED)
             _task_delete(g_task_prev);
     }
     // encerra a tarefa dispatcher
